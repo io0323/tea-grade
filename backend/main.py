@@ -58,6 +58,14 @@ class HealthResponse(BaseModel):
     status: str
     message: str
 
+
+def log_and_raise_http_error(error_msg: str, err: Exception, status_code: int) -> None:
+    """エラーログを出力してHTTPExceptionを発生させる共通関数"""
+    logger.error("%s: %s", error_msg, str(err))
+    logger.error(traceback.format_exc())
+    raise HTTPException(status_code=status_code, detail=error_msg) from err
+
+
 def optimize_image(image: Image.Image, max_size: tuple[int, int] = (400, 400)) -> Image.Image:
     """画像を最適化する"""
     try:
@@ -76,9 +84,8 @@ def optimize_image(image: Image.Image, max_size: tuple[int, int] = (400, 400)) -
 
         return image
     except Exception as err:  # pylint: disable=broad-except
-        logger.error("画像最適化エラー: %s", str(err))
-        logger.error(traceback.format_exc())
-        raise
+        log_and_raise_http_error("画像最適化エラー", err, 500)
+        return None  # この行は実行されないが、型チェッカーのために追加
 
 @app.post("/analyze", response_model=AnalyzeResponse)
 async def analyze_tea(file: UploadFile = File(...)) -> AnalyzeResponse:
@@ -99,9 +106,7 @@ async def analyze_tea(file: UploadFile = File(...)) -> AnalyzeResponse:
             image = Image.open(io.BytesIO(contents))
             logger.debug("画像フォーマット: %s, サイズ: %s, モード: %s", image.format, image.size, image.mode)
         except Exception as err:  # pylint: disable=broad-except
-            logger.error("画像読み込みエラー: %s", str(err))
-            logger.error(traceback.format_exc())
-            raise HTTPException(status_code=400, detail="画像の読み込みに失敗しました") from err
+            log_and_raise_http_error("画像の読み込みに失敗しました", err, 400)
 
         # 画像フォーマットの検証
         if image.format not in ["JPEG", "PNG"]:
@@ -111,9 +116,7 @@ async def analyze_tea(file: UploadFile = File(...)) -> AnalyzeResponse:
         try:
             image = optimize_image(image)
         except Exception as err:  # pylint: disable=broad-except
-            logger.error("画像最適化エラー: %s", str(err))
-            logger.error(traceback.format_exc())
-            raise HTTPException(status_code=500, detail="画像の最適化に失敗しました") from err
+            log_and_raise_http_error("画像の最適化に失敗しました", err, 500)
 
         # モック推論処理
         try:
@@ -130,17 +133,13 @@ async def analyze_tea(file: UploadFile = File(...)) -> AnalyzeResponse:
 
             return result
         except Exception as err:  # pylint: disable=broad-except
-            logger.error("推論処理エラー: %s", str(err))
-            logger.error(traceback.format_exc())
-            raise HTTPException(status_code=500, detail="分析処理に失敗しました") from err
+            log_and_raise_http_error("分析処理に失敗しました", err, 500)
 
     except HTTPException as http_err:
         logger.error("HTTPエラー: %s", str(http_err.detail))
         raise
     except Exception as err:  # pylint: disable=broad-except
-        logger.error("予期せぬエラー: %s", str(err))
-        logger.error(traceback.format_exc())
-        raise HTTPException(status_code=500, detail="予期せぬエラーが発生しました") from err
+        log_and_raise_http_error("予期せぬエラーが発生しました", err, 500)
 
 @app.get("/health", response_model=HealthResponse)
 async def health_check() -> HealthResponse:
@@ -149,6 +148,4 @@ async def health_check() -> HealthResponse:
     try:
         return HealthResponse(status="healthy", message="サーバーは正常に動作しています")
     except Exception as err:  # pylint: disable=broad-except
-        logger.error("ヘルスチェックエラー: %s", str(err))
-        logger.error(traceback.format_exc())
-        raise HTTPException(status_code=500, detail="Internal Server Error") from err
+        log_and_raise_http_error("Internal Server Error", err, 500)
