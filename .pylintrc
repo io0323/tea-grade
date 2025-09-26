@@ -1,0 +1,19 @@
+[MASTER]
+
+[MESSAGES CONTROL]
+# R0801を一時的に無効化（必要に応じて）
+# disable=R0801
+
+[FORMAT]
+# 行の最大長
+max-line-length=100
+
+[DESIGN]
+# 関数の最大引数数
+max-args=10
+# 関数の最大ローカル変数数
+max-locals=20
+
+[VARIABLES]
+# 未使用変数の許可
+dummy-variables-rgx=_+$|(_[a-zA-Z0-9_]*[a-zA-Z0-9]+?$)|dummy|^ignored_|^unused_
