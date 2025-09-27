@@ -1,8 +1,8 @@
 [MASTER]
 
 [MESSAGES CONTROL]
-# R0801を一時的に無効化（必要に応じて）
-# disable=R0801
+# R0801を無効化（サードパーティコードとの重複を回避）
+disable=R0801
 
 [FORMAT]
 # 行の最大長
